@@ -1,20 +1,9 @@
+//////////////////////////////////////////////////////////////////////
+
 #include "stdafx.h"
 #include "Regex.h"
 
-#define MAX_LOADSTRING 100
-
-HINSTANCE hInst;								// current instance
-TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
-TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
-
-// Forward declarations of functions included in this code module:
-ATOM				MyRegisterClass(HINSTANCE hInstance);
-BOOL				InitInstance(HINSTANCE, int);
-LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
-
-HWND gInputBox1;
-HWND gInputBox2;
-HWND gResults;
+//////////////////////////////////////////////////////////////////////
 
 using namespace std;
 
@@ -31,6 +20,61 @@ typedef char tchar;
 typedef basic_regex<tchar> tregex;
 typedef match_results<const tchar *> tcmatch;
 typedef match_results<tstring::const_iterator> tsmatch;
+
+//////////////////////////////////////////////////////////////////////
+
+#define MAX_LOADSTRING 100
+
+HINSTANCE hInst;
+TCHAR szTitle[MAX_LOADSTRING];
+TCHAR szWindowClass[MAX_LOADSTRING];
+
+HWND gInputBox1;
+HWND gInputBox2;
+HWND gResults;
+
+const int fontHeight = 13;
+
+HFONT font = CreateFont(-fontHeight, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, TEXT("Consolas"));
+
+//////////////////////////////////////////////////////////////////////
+
+ATOM				MyRegisterClass(HINSTANCE hInstance);
+BOOL				InitInstance(HINSTANCE, int);
+LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
+
+//////////////////////////////////////////////////////////////////////
+
+struct Selection
+{
+	int begin;
+	int end;
+
+	Selection(int b, int e)
+		: begin(b)
+		, end(e)
+	{
+	}
+};
+
+//////////////////////////////////////////////////////////////////////
+
+struct ControlFreezer
+{
+	ControlFreezer(HWND w) : control(w)
+	{
+		SendMessage(control, WM_SETREDRAW, FALSE, 0);
+	}
+
+	~ControlFreezer()
+	{
+		SendMessage(control, WM_SETREDRAW, TRUE, 0);
+	}
+
+	HWND control;
+};
+
+//////////////////////////////////////////////////////////////////////
 
 string Format_V(char const *fmt, va_list v)
 {
@@ -86,6 +130,8 @@ void Trace(char const *strMsg, ...)
 	va_end(args);
 }
 
+//////////////////////////////////////////////////////////////////////
+
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR, int nCmdShow)
 {
 	MSG msg;
@@ -114,6 +160,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR, int nCmdShow)
 	return (int) msg.wParam;
 }
 
+//////////////////////////////////////////////////////////////////////
+
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
 	WNDCLASSEX wcex;
@@ -127,13 +175,15 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	wcex.hInstance		= hInstance;
 	wcex.hIcon			= LoadIcon(hInstance, MAKEINTRESOURCE(IDI_REGEX));
 	wcex.hCursor		= LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground	= (HBRUSH)(COLOR_WINDOW+2);
+	wcex.hbrBackground = (HBRUSH)(GetStockBrush(BLACK_BRUSH));
 	wcex.lpszMenuName	= MAKEINTRESOURCE(IDC_REGEX);
 	wcex.lpszClassName	= szWindowClass;
 	wcex.hIconSm		= LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
 	return RegisterClassEx(&wcex);
 }
+
+//////////////////////////////////////////////////////////////////////
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
@@ -152,25 +202,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
+//////////////////////////////////////////////////////////////////////
+
 template <typename T> void Zero(T &t)
 {
 	ZeroMemory(&t, sizeof(t));
 }
 
-// match 0 is the root node
-// all others are children of it
-
-struct Selection
-{
-	int begin;
-	int end;
-
-	Selection(int b, int e)
-		: begin(b)
-		, end(e)
-	{
-	}
-};
+//////////////////////////////////////////////////////////////////////
 
 HTREEITEM AddTreeItem(HTREEITEM parent, tchar const *text, int begin, int end)
 {
@@ -193,20 +232,7 @@ HTREEITEM AddTreeItem(HTREEITEM parent, tchar const *text, int begin, int end)
 	return item;
 }
 
-struct ControlFreezer
-{
-	ControlFreezer(HWND w) : control(w)
-	{
-		SendMessage(control, WM_SETREDRAW, FALSE, 0);
-	}
-
-	~ControlFreezer()
-	{
-		SendMessage(control, WM_SETREDRAW, TRUE, 0);
-	}
-
-	HWND control;
-};
+//////////////////////////////////////////////////////////////////////
 
 void Update()
 {
@@ -254,10 +280,7 @@ void Update()
 	}
 }
 
-static const int fontHeight = 13;
-
-HFONT font = CreateFont(-fontHeight, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, TEXT("Consolas"));
-
+//////////////////////////////////////////////////////////////////////
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -279,7 +302,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			GetWindowRect(gInputBox2, &r2);
 			y += 2 + (r2.bottom - r2.top);
 
-			gResults = CreateWindowEx(0, WC_TREEVIEW, TEXT("Results"), WS_VISIBLE | WS_CHILD | TVS_LINESATROOT | TVS_HASLINES | TVS_HASBUTTONS, 0, y, rc.right, 400, hWnd, (HMENU)ID_TREEVIEW, hInst, NULL);
+			gResults = CreateWindowEx(0, WC_TREEVIEW, TEXT("Results"), WS_VISIBLE | WS_CHILD | TVS_FULLROWSELECT, 0, y, rc.right, 400, hWnd, (HMENU)ID_TREEVIEW, hInst, NULL);
 
 			SendMessage(gInputBox1, WM_SETFONT, (WPARAM)font, MAKELPARAM(true, 0));
 			SendMessage(gInputBox2, WM_SETFONT, (WPARAM)font, MAKELPARAM(true, 0));
