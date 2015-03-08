@@ -112,6 +112,24 @@ wstring Format_V(wchar const *fmt, va_list v)
 
 //////////////////////////////////////////////////////////////////////
 
+wstring Format(wchar const *fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	return Format_V(fmt, v);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+string Format(char const *fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	return Format_V(fmt, v);
+}
+
+//////////////////////////////////////////////////////////////////////
+
 void Trace(wchar const *strMsg, ...)
 {
 	va_list args;
@@ -257,6 +275,9 @@ void Update()
 		return;
 	}
 
+	// name value pairs: (\w+)(\s*=\s*(\w+)|,)?
+	// semantic declaration: .*\:\s*semantic\s*:\s*\(\s*\"(.*)\"\s*\)
+
 	using it = regex_iterator < tstring::iterator >;
 	it rend;
 	it a(match.begin(), match.end(), r);
@@ -266,15 +287,12 @@ void Update()
 		auto start = a->position();
 		auto end = start + a->length();
 		HTREEITEM item = AddTreeItem(TVI_ROOT, match0.str().c_str(), start, end);
-		for(int i = 1; i < a->length(); ++i)
+		for(unsigned int i = 1; i < a->size(); ++i)
 		{
 			auto &match = (*a)[i];
-			if(match.matched)
-			{
-				auto start2 = start + std::distance(match0.first, match.first);
-				auto end2 = start + std::distance(match0.first, match.second);
-				AddTreeItem(item, match.str().c_str(), start2, end2);
-			}
+			auto start2 = start + std::distance(match0.first, match.first);
+			auto end2 = start + std::distance(match0.first, match.second);
+			AddTreeItem(item, match.str().c_str(), start2, end2);
 		}
 		++a;
 	}
@@ -294,15 +312,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			int y = 0;
 			GetClientRect(hWnd, &rc);
 
-			gInputBox1 = CreateWindow(TEXT("Edit"), TEXT("\\s*([A-Za-z0-9]*)\\s*\\=\\s*([A-Za-z0-9]*)\\s*"), WS_VISIBLE | WS_CHILD, 0, 0, rc.right, fh, hWnd, (HMENU)ID_INPUT1, hInst, NULL);
+			gInputBox1 = CreateWindow(TEXT("Edit"), TEXT("(\\w+)(\\s*=\\s*(\\w+)|,)?"), WS_VISIBLE | WS_CHILD, 0, 0, rc.right, fh, hWnd, (HMENU)ID_INPUT1, hInst, NULL);
 			GetWindowRect(gInputBox1, &r2);
 			y += 2 + (r2.bottom - r2.top);
 
-			gInputBox2 = CreateWindow(TEXT("Edit"), TEXT("	float3 position				: semantic(name = mColor, type = byte, stream = 2, instances = 2);"), ES_NOHIDESEL | ES_MULTILINE | WS_VISIBLE | WS_CHILD, 0, y, rc.right, fh * 8, hWnd, (HMENU)ID_INPUT2, hInst, NULL);
+			gInputBox2 = CreateWindow(TEXT("Edit"), TEXT("name = mColor, type = byte, stream = 2, instances = 2, foo, bar=baz, qux"), ES_NOHIDESEL | ES_MULTILINE | WS_VISIBLE | WS_CHILD, 0, y, rc.right, fh * 8, hWnd, (HMENU)ID_INPUT2, hInst, NULL);
 			GetWindowRect(gInputBox2, &r2);
 			y += 2 + (r2.bottom - r2.top);
 
-			gResults = CreateWindowEx(0, WC_TREEVIEW, TEXT("Results"), WS_VISIBLE | WS_CHILD | TVS_FULLROWSELECT, 0, y, rc.right, 400, hWnd, (HMENU)ID_TREEVIEW, hInst, NULL);
+			gResults = CreateWindowEx(0, WC_TREEVIEW, TEXT("Results"), WS_VISIBLE | WS_CHILD | TVS_HASLINES, 0, y, rc.right, 400, hWnd, (HMENU)ID_TREEVIEW, hInst, NULL);
 
 			SendMessage(gInputBox1, WM_SETFONT, (WPARAM)font, MAKELPARAM(true, 0));
 			SendMessage(gInputBox2, WM_SETFONT, (WPARAM)font, MAKELPARAM(true, 0));
